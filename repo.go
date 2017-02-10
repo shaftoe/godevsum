@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+var version = "0.1.0"
+
+var semverRegexp = `(\d+\.)?(\d+\.)?(\*|\d+)`
+
 type gitRepo struct {
 	url string
 }
@@ -34,8 +38,9 @@ func (repo *gitRepo) remoteTags() []string {
 }
 
 func matchingTags(tags []string, regexpPrefix string) []string {
-	// regexp brutally cargoculted from http://stackoverflow.com/questions/82064/a-regex-for-version-number-parsing
-	var validTag = regexp.MustCompile("^" + regexpPrefix + `(\d+\.)?(\d+\.)?(\*|\d+)$`)
+	// regexp brutally cargoculted from
+	// http://stackoverflow.com/questions/82064/a-regex-for-version-number-parsing
+	var validTag = regexp.MustCompile("^" + regexpPrefix + semverRegexp + `$`)
 	var result []string
 	for _, tag := range tags {
 		if validTag.MatchString(tag) {
@@ -49,7 +54,7 @@ func matchingTags(tags []string, regexpPrefix string) []string {
 // it from the latest reference name matching regexpPrefix. For example, for Go
 // url is "https://go.googlesource.com/go" and regexPrefix is "refs/tags/go"
 //
-// Return empty string if no tag matches given regexpPrefix
+// Returns empty string if no tag matches given regexpPrefix
 func LatestVersionTag(url string, regexpPrefix string, tags ...string) string {
 	switch {
 	case len(tags) == 0:

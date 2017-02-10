@@ -1,10 +1,44 @@
 package godevsum
 
-import "testing"
+import (
+	"bytes"
+	"io/ioutil"
+	"regexp"
+	"testing"
+)
 
 func validate(result, expected string, t *testing.T) {
 	if result != expected {
 		t.Error("result:", result, "expected:", expected)
+	}
+}
+
+func TestChangelogUpToDate(t *testing.T) {
+	filename := "CHANGELOG.md"
+	match := []byte("## [" + version + "]")
+	sr := `## \[` + semverRegexp + `\]`
+
+	changelog, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Error("Can not read", filename)
+	}
+
+	curIndex := bytes.Index(changelog, match)
+	if curIndex < 0 {
+		t.Error("Entry for version", version, "not found in", filename)
+	}
+
+	r, err := regexp.Compile(sr)
+	if err != nil {
+		t.Error("Can not compile regexp", sr)
+	}
+
+	firstIndex := r.FindIndex(changelog)
+	switch {
+	case firstIndex == nil:
+		t.Error("Could not find any string matching", sr, "in", filename)
+	case curIndex > firstIndex[0]:
+		t.Error(version, "is not the latest entry in", filename)
 	}
 }
 
