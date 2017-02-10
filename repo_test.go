@@ -16,7 +16,7 @@ func TestLatestMatchingTag(t *testing.T) {
 	validate(result, expected, t)
 
 	expected = ""
-	s = "386f2a698332b61278883df6f97d79eb98fe3f29\trefs/heads/master\na839bf2d274aaecd509b51ec37cb51842d4de348\trefs/tags/test01\na839bf2d274aaecd509b51ec37cb51842d4de348\trefs/tags/test02\n386f2a698332b61278883df6f97d79eb98fe3f29\t1.2.3\n"
+	s = "386f2a698332b61278883df6f97d79eb98fe3f29\trefs/heads/master\na839bf2d274aaecd509b51ec37cb51842d4de348\trefs/tags/test01\na839bf2d274aaecd509b51ec37cb51842d4de348\trefs/tags/test02\n386f2a698332b61278883df6f97d79eb98fe3f29\t12.34"
 	tags = TagsFromGitOutput([]byte(s))
 	result = LatestVersionTag("https://mock", "notExistent", tags...)
 	validate(result, expected, t)
@@ -25,7 +25,13 @@ func TestLatestMatchingTag(t *testing.T) {
 	result = LatestVersionTag("https://mock", "refs/tags/test", tags...)
 	validate(result, expected, t)
 
-	expected = "1.2.3"
+	expected = "12.34"
 	result = LatestVersionTag("https://mock", "", tags...)
+	validate(result, expected, t)
+
+	expected = "12.34.56"
+	s = s + "\n386f2a698332b61278883df6f97d79eb98fe3f29\trefs/tags/12.34.56\n"
+	tags = TagsFromGitOutput([]byte(s))
+	result = LatestVersionTag("https://mock", "refs/tags/", tags...)
 	validate(result, expected, t)
 }

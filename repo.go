@@ -34,7 +34,8 @@ func (repo *gitRepo) remoteTags() []string {
 }
 
 func matchingTags(tags []string, regexpPrefix string) []string {
-	var validTag = regexp.MustCompile("^" + regexpPrefix + `(\d+(\.\d+\.\d+)?)$`)
+	// regexp brutally cargoculted from http://stackoverflow.com/questions/82064/a-regex-for-version-number-parsing
+	var validTag = regexp.MustCompile("^" + regexpPrefix + `(\d+\.)?(\d+\.)?(\*|\d+)$`)
 	var result []string
 	for _, tag := range tags {
 		if validTag.MatchString(tag) {
