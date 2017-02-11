@@ -1,15 +1,21 @@
 package godevsum
 
 import (
+	"fmt"
 	"log"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
+
+	"github.com/Masterminds/semver"
 )
 
-var version = "0.1.0"
+const version = "0.2.0"
 
-var semverRegexp = `(\d+\.)?(\d+\.)?(\*|\d+)`
+// regexp brutally cargoculted from
+// http://stackoverflow.com/questions/82064/a-regex-for-version-number-parsing
+const versionRegexp = `(\d+\.)?(\d+\.)?(\d+)`
 
 type gitRepo struct {
 	url string
@@ -38,9 +44,7 @@ func (repo *gitRepo) remoteTags() []string {
 }
 
 func matchingTags(tags []string, regexpPrefix string) []string {
-	// regexp brutally cargoculted from
-	// http://stackoverflow.com/questions/82064/a-regex-for-version-number-parsing
-	var validTag = regexp.MustCompile("^" + regexpPrefix + semverRegexp + `$`)
+	var validTag = regexp.MustCompile("^" + regexpPrefix + versionRegexp + `$`)
 	var result []string
 	for _, tag := range tags {
 		if validTag.MatchString(tag) {
@@ -50,22 +54,48 @@ func matchingTags(tags []string, regexpPrefix string) []string {
 	return result
 }
 
-// LatestVersionTag returns the latest tagged version of the Git project guessing
-// it from the latest reference name matching regexpPrefix. For example, for Go
-// url is "https://go.googlesource.com/go" and regexPrefix is "refs/tags/go"
+// LatestVersion returns biggest version according to semver semantic
+// Returns empty string if versions is an empty slice
+func LatestVersion(versions []string) string {
+	if len(versions) == 0 {
+		return ""
+	}
+
+	vs := make([]*semver.Version, len(versions))
+	for i, r := range versions {
+		v, err := semver.NewVersion(r)
+		if err != nil {
+			// TODO log this to stderr or at least not to the user directly
+			fmt.Println("Warning:", r, "is not a valid semver string, defaulting to 0.0.0")
+			vs[i], err = semver.NewVersion("0.0.0")
+		} else {
+			vs[i] = v
+		}
+	}
+
+	sort.Sort(semver.Collection(vs))
+	return vs[len(vs)-1].String()
+}
+
+// LatestTaggedVersion returns the latest tagged version of the Git project matching
+// regexpPrefix. For example, for Go url is "https://go.googlesource.com/go" and
+// regexPrefix is "refs/tags/go"
 //
 // Returns empty string if no tag matches given regexpPrefix
-func LatestVersionTag(url string, regexpPrefix string, tags ...string) string {
+func LatestTaggedVersion(url string, regexpPrefix string, tags ...string) string {
 	switch {
 	case len(tags) == 0:
 		repo := &gitRepo{url: url}
 		tags = matchingTags(repo.remoteTags(), regexpPrefix)
-	case len(tags) > 0:
+	case len(tags) > 0: // This case is only used to inject tags for testing purpose
 		tags = matchingTags(tags, regexpPrefix)
 	}
 
-	if len(tags) > 0 {
-		return tags[len(tags)-1][len(regexpPrefix):]
+	// Remove the prefix from the tags
+	versions := make([]string, len(tags))
+	for i, tag := range tags {
+		versions[i] = tag[len(regexpPrefix):]
 	}
-	return ""
+
+	return LatestVersion(versions)
 }
