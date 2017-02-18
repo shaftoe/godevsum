@@ -6,11 +6,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2017-02-19
+### Added
+- New `Version` API + tests
+### Changed
+- Reimplemented the `Version` semantic: using `github.com/Masterminds/semver` seemed overkill and was supporting only semver anyway, we want to be more generic and support versions like _1.0_ or _2.3.4.5_ too
+- Version regexp (`versionRegexp`) is now more flexible and matches an arbitrary long digit dotted string (like _0.1.2.3.4.5.6..._ etc)
+### Removed
+- `github.com/Masterminds/semver` dependency
+
 ## [0.2.0] - 2017-02-11
 ### Added
 - Added dependency to `github.com/Masterminds/semver` because I'm too lazy to implement a proper version ordering algorhitm. Unfortunately this lib is padding missing version numbers (i.e. minor and/or patch) with zeros, and I'd like to preseve the original ones from Git remotes, so maybe it will be replaced at some point.
 - Added test `TestLatestVersion`
-### Modified
+### Changed
 - Bugfix: now thanks to `Masterminds/semver` we properly parse versions with double digits
 - Small bugfix for `semverRegexp`
 
