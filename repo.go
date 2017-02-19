@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const version = "0.3.0"
+const version = "0.3.1"
 
 // We are only interested in "stable" versions, so we ignore
 // strings and only look for digits.
@@ -105,7 +105,7 @@ type Version struct {
 	head   *versionElement
 	tail   *versionElement
 	slice  []string
-	lenght int
+	length int
 }
 
 type versionElement struct {
@@ -124,7 +124,7 @@ func (v *Version) addElement(value int) error {
 		v.head.next = &versionElement{val: value}
 		v.tail = v.head.next
 	}
-	v.lenght++
+	v.length++
 	return nil
 }
 
@@ -179,16 +179,16 @@ func (v *Version) Compare(o *Version) int {
 	// under this line, head value is equal
 
 	// simple case: one element on both side and is equal
-	case v.lenght == 1 && o.lenght == 1:
+	case v.length == 1 && o.length == 1:
 		return 0
 	}
 
 	// for the other cases, we cut Version's head and run compare again
 	var vSlice, oSlice []string
 	switch {
-	case v.lenght == 1 && o.lenght > 1:
+	case v.length == 1 && o.length > 1:
 		vSlice, oSlice = []string{"0"}, o.slice[1:]
-	case o.lenght == 1 && v.lenght > 1:
+	case o.length == 1 && v.length > 1:
 		vSlice, oSlice = v.slice[1:], []string{"0"}
 	default:
 		vSlice, oSlice = v.slice[1:], o.slice[1:]

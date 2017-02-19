@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2017-02-19
+### Added
+- Apache v2.0 license
+
 ## [0.3.0] - 2017-02-19
 ### Added
 - New `Version` API + tests

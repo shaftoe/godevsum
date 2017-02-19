@@ -107,8 +107,8 @@ func TestLatestVersion(t *testing.T) {
 func TestVersionInternals(t *testing.T) {
 	n := Version{}
 
-	if n.lenght != 0 {
-		t.Error("unitialized Version should hold 0 lenght")
+	if n.length != 0 {
+		t.Error("unitialized Version should hold 0 length")
 	}
 	err := n.addElement(-1)
 	if err == nil {
@@ -126,7 +126,7 @@ func TestVersionInternals(t *testing.T) {
 		n.addElement(i)
 		validateExpectedInt("n.tail.val", i, n.tail.val, t)
 	}
-	validateExpectedInt("n.lenght", max, n.lenght, t)
+	validateExpectedInt("n.length", max, n.length, t)
 	validateExpectedInt("n.tail.val", max, n.tail.val, t)
 	if n.tail.next != nil {
 		t.Error("n.tail.Next: expected nil, received", n.tail.next)
@@ -136,7 +136,7 @@ func TestVersionInternals(t *testing.T) {
 func TestVersionApi(t *testing.T) {
 	v := &Version{}
 
-	validateExpectedInt("v.lenght", 0, v.lenght, t)
+	validateExpectedInt("v.length", 0, v.length, t)
 	if v.head != nil {
 		t.Error("Version default val should be nil pointer")
 	}
@@ -153,9 +153,9 @@ func TestVersionApi(t *testing.T) {
 
 	v, _ = NewVersion("0")
 	validateExpectedInt("v.head.val", 0, v.head.val, t)
-	validateExpectedInt("v.lenght", 1, v.lenght, t)
+	validateExpectedInt("v.length", 1, v.length, t)
 	if len(v.slice) != 1 {
-		t.Error("v.slice lenght should be 1, received", len(v.slice))
+		t.Error("v.slice length should be 1, received", len(v.slice))
 	}
 	if v.slice[0] != "0" {
 		t.Error("v.slice value should be 0, received", v.slice[0])
@@ -163,12 +163,12 @@ func TestVersionApi(t *testing.T) {
 
 	v, _ = NewVersion("1.0.0")
 	validateExpectedInt("v.head.val", 1, v.head.val, t)
-	validateExpectedInt("v.lenght", 3, v.lenght, t)
+	validateExpectedInt("v.length", 3, v.length, t)
 
 	v, _ = NewVersion("0.1.2.3.45")
 	validateExpectedInt("v.head.val", 0, v.head.val, t)
 	validateExpectedInt("v.tail.val", 45, v.tail.val, t)
-	validateExpectedInt("v.lenght", 5, v.lenght, t)
+	validateExpectedInt("v.length", 5, v.length, t)
 }
 
 func TestVersionCompare(t *testing.T) {
