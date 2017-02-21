@@ -238,3 +238,42 @@ func TestBiggestVersion(t *testing.T) {
 	biggest = BiggestVersion(c)
 	validateExpectedStr(biggest, "", t)
 }
+
+func TestReplaceHostWithIp(t *testing.T) {
+	cases := [][]string{
+		{"https://localhost/restofurl", "https://::1/restofurl"},
+		{"git://localhost/restofurl/is/long", "git://::1/restofurl/is/long"},
+		{"http://localhost/restofurl", "http://::1/restofurl"},
+	}
+
+	for _, c := range cases {
+		input, expected := c[0], c[1]
+		result, _ := ReplaceHostWithIP(input)
+		validateExpectedStr(result, expected, t)
+	}
+
+	if r, err := ReplaceHostWithIP("http2://google.com"); r != "" || err == nil {
+		t.Error("https is not a valid transport and should fail")
+	}
+	if r, err := ReplaceHostWithIP("http://bogus"); r != "" || err == nil {
+		t.Error("Bogus url should return empty string and error")
+	}
+	if r, err := ReplaceHostWithIP("http://bogusdomain"); r != "" || err == nil {
+		t.Error("Bogus url should return empty string and error")
+	}
+}
+
+func TestGitPath(t *testing.T) {
+	if GitPath() != "git" {
+		t.Error("Default gitPath should be 'git'")
+	}
+	if err := SetGitPath("/whatever/bogus", false); err == nil {
+		t.Error("Bogus paths should return error")
+	}
+	if err := SetGitPath("/usr/bin/git", false); err != nil {
+		t.Error("'/usr/bin/git' should be valid input, returned " + err.Error())
+	}
+	if GitPath() != "/usr/bin/git" {
+		t.Error("Updated gitPath should be '/usr/bin/git'")
+	}
+}

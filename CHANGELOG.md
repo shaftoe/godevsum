@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2017-02-23
+### Added
+- `ReplaceHostWithIP` utility to perform DNS lookup and translate hosts in IPs
+- now setting `gitPath` value is possible to use a different path for performing git commands (for example in a container where git is not available in the `PATH`)
+- test coverage
+### Changed
+- `remoteTags` now returns error too
+
 ## [0.3.1] - 2017-02-19
 ### Added
 - Apache v2.0 license

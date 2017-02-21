@@ -2,14 +2,17 @@ package godevsum
 
 import (
 	"errors"
-	"log"
+	"net"
+	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-const version = "0.3.1"
+const version = "0.4.0"
+
+var gitPath = "git"
 
 // We are only interested in "stable" versions, so we ignore
 // strings and only look for digits.
@@ -17,6 +20,35 @@ const versionRegexp = `(\d+\.)*(\d+)`
 
 type gitRepo struct {
 	url string
+}
+
+// GitPath returns the current binary path used to execute
+// git commands.
+func GitPath() string {
+	return gitPath
+}
+
+// SetGitPath sets given path as Git binary to be used.
+// Returns error if path is not found.
+//
+// If enforceExec is true, return error if it is not possible
+// to set path as executable.
+func SetGitPath(path string, enforceExec bool) error {
+	if !(len(path) >= 3 && strings.HasSuffix(path, "git")) {
+		return errors.New("path must end with 'git'")
+	}
+	if enforceExec {
+		if err := os.Chmod(path, 0755); err != nil {
+			return err
+		}
+	}
+
+	p, err := exec.LookPath(path)
+	if err != nil {
+		return err
+	}
+	gitPath = p
+	return nil
 }
 
 // TagsFromGitOutput parses "git ls-remote" standard output to return only
@@ -33,12 +65,12 @@ func TagsFromGitOutput(stdout []byte) []string {
 	return result
 }
 
-func (repo *gitRepo) remoteTags() []string {
-	stdout, err := exec.Command("git", "ls-remote", "--tags", repo.url).Output()
+func (repo *gitRepo) remoteTags() ([]string, error) {
+	stdout, err := exec.Command(gitPath, "ls-remote", "--tags", repo.url).CombinedOutput()
 	if err != nil {
-		log.Fatal(err)
+		return []string{string(stdout)}, err
 	}
-	return TagsFromGitOutput(stdout)
+	return TagsFromGitOutput(stdout), nil
 }
 
 func matchingTags(tags []string, regexpPrefix string) []string {
@@ -80,17 +112,23 @@ func LatestVersion(versions []string) string {
 //
 // Returns empty string if no tag matches given regexpPrefix
 func LatestTaggedVersion(url string, regexpPrefix string, tags ...string) string {
-	switch l := len(tags); {
-	case l == 0:
+	// TODO add error return
+	var mTags []string
+	switch {
+	case len(tags) == 0:
 		repo := &gitRepo{url: url}
-		tags = matchingTags(repo.remoteTags(), regexpPrefix)
-	case l > 0: // This case is only used to inject tags for testing purpose
-		tags = matchingTags(tags, regexpPrefix)
+		t, err := repo.remoteTags()
+		if err != nil {
+			return err.Error()
+		}
+		mTags = matchingTags(t, regexpPrefix)
+	case len(tags) > 0: // This case is only used to inject tags for testing purpose
+		mTags = matchingTags(tags, regexpPrefix)
 	}
 
 	// Remove the prefix from the tags
-	versions := make([]string, len(tags))
-	for i, tag := range tags {
+	versions := make([]string, len(mTags))
+	for i, tag := range mTags {
 		versions[i] = tag[len(regexpPrefix):]
 	}
 
@@ -214,4 +252,34 @@ func BiggestVersion(array []*Version) string {
 	}
 
 	return max.String()
+}
+
+// ReplaceHostWithIP performs a DNS lookup for the host in the given
+// url and replaces the host string in the url with the IPv4 address.
+func ReplaceHostWithIP(url string) (string, error) {
+	// FIXME this is a weak check, add better match
+	r := regexp.MustCompile(`^[a-zA-Z]+://`)
+	if !r.MatchString(url) {
+		return "", errors.New("Url " + url + " is invalid")
+	}
+
+	var host string
+
+	var splitted = strings.Split(url, "/")
+	if len(splitted) >= 3 {
+		host = splitted[2]
+	} else {
+		return "", errors.New("Url " + url + " is invalid")
+	}
+
+	addr, err := net.LookupHost(host)
+	if err != nil {
+		return "", err
+	}
+
+	if len(addr) == 0 {
+		return "", errors.New("DNS lookup for host " + host + " failed")
+	}
+	splitted[2] = addr[0]
+	return strings.Join(splitted, "/"), nil
 }
