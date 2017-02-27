@@ -85,24 +85,25 @@ func TestLatestVersion(t *testing.T) {
 	var expected, result string
 
 	tags = []string{"1", "2.3.4", "0.12", "5.4.3", "5.3.4", "0.0"}
-	result = LatestVersion(tags)
+	result, _ = LatestVersion(tags)
 	expected = "5.4.3"
 	validateExpectedStr(result, expected, t)
 
 	tags = []string{"1001.1002", "2.3", "0.12", "5.4.3", "0.0.0", "1001.130"}
-	result = LatestVersion(tags)
+	result, _ = LatestVersion(tags)
 	expected = "1001.1002"
 	validateExpectedStr(result, expected, t)
 
 	tags = []string{}
-	result = LatestVersion(tags)
+	result, _ = LatestVersion(tags)
 	expected = ""
 	validateExpectedStr(result, expected, t)
 
-	tags = []string{"TEST", "1.2.3.4"}
-	result = LatestVersion(tags)
-	expected = "1.2.3.4"
-	validateExpectedStr(result, expected, t)
+	tags = []string{"1.2.3.4", "TEST", "10"}
+	result, err := LatestVersion(tags)
+	if err == nil || result != "TEST" {
+		t.Error("LatestVersion should fail if not all tags are valid")
+	}
 }
 
 func TestVersionInternals(t *testing.T) {
@@ -270,8 +271,11 @@ func TestGitFetcher(t *testing.T) {
 	if res := gf.GitPath(); res != "git" {
 		t.Error("Default git path should be 'git', received", res)
 	}
-	if err := gf.SetGitPath("/whatever/bogus", false); err == nil {
-		t.Error("Bogus paths should return error")
+	if err := gf.SetGitPath("/etc/passwd", false); err == nil {
+		t.Error("Paths not ending in /git should return error")
+	}
+	if err := gf.SetGitPath("bsdfafd/git", false); err == nil {
+		t.Error("Not-existing paths should return error")
 	}
 	if err := gf.SetGitPath("/usr/bin/git", false); err != nil {
 		t.Error("'/usr/bin/git' should be valid input, returned " + err.Error())

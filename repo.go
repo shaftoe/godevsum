@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const version = "0.5.0"
+const version = "0.5.1"
 
 // we are only interested in "stable" versions, so we ignore
 // strings and only look for digits.
@@ -31,25 +31,17 @@ func (gf *GitFetcher) GitPath() string {
 // for example when failing to enforce execution bit.
 func (gf *GitFetcher) SetGitPath(path string, enforceExec bool) error {
 	switch path {
-	case "":
-		// by default, we just use "git" as path
+	case "", "git":
 		gf.path = "git"
 		if !enforceExec {
 			return nil
 		}
 	default:
-		validPaths := map[string]struct{}{
-			"git":                struct{}{},
-			"/usr/bin/git":       struct{}{},
-			"/usr/local/bin/git": struct{}{},
-			"/action/git":        struct{}{},
+		if len(path) < 4 || path[len(path)-4:] != "/git" {
+			return errors.New(path + " is an invalid path, must end with /git")
 		}
-		if _, ok := validPaths[path]; !ok {
-			var errPaths []string
-			for p := range validPaths {
-				errPaths = append(errPaths, p)
-			}
-			return errors.New(path + " is an invalid path, must be one between " + strings.Join(errPaths, ", "))
+		if _, err := os.Lstat(path); err != nil {
+			return err
 		}
 	}
 
@@ -94,25 +86,23 @@ func matchingTags(tags []string, regexpPrefix string) []string {
 
 // LatestVersion returns biggest version according to semver semantic
 //
-// Returns empty string if versions is an empty slice
-func LatestVersion(versions []string) string {
+// Returns empty string if versions is an empty slice. When unparsable
+// string is found, return it together with an error
+func LatestVersion(versions []string) (string, error) {
 	if len(versions) == 0 {
-		return ""
+		return "", nil
 	}
 
 	vs := make([]*Version, len(versions))
-	for i, r := range versions {
-		v, err := NewVersion(r)
+	for i, raw := range versions {
+		v, err := NewVersion(raw)
 		if err != nil {
-			// default to version 0
-			// FIXME add better error handling
-			vs[i], _ = NewVersion("0")
-		} else {
-			vs[i] = v
+			return raw, err
 		}
+		vs[i] = v
 	}
 
-	return BiggestVersion(vs)
+	return BiggestVersion(vs), nil
 }
 
 // GitFetcher represent the object which is responsible
@@ -126,7 +116,11 @@ type GitFetcher struct {
 }
 
 // NewGitFetcher creates a GitFetcher type instance and returns
-// a pointer to it
+// a pointer to it. GitFetcher type is the interface to the Git binary
+// used to fetch the data from the remote.
+//
+// If path is empty string, will try to use the default "git" found in
+// the PATH if present, or fail otherwise.
 func NewGitFetcher(path string, enforce bool) (*GitFetcher, error) {
 	gf := &GitFetcher{path: path}
 	err := gf.SetGitPath(path, enforce)
@@ -169,7 +163,7 @@ func lastVer(url string, regexpPrefix string, gf *GitFetcher) (string, error) {
 		versions[i] = tag[len(regexpPrefix):]
 	}
 
-	return LatestVersion(versions), nil
+	return LatestVersion(versions)
 }
 
 // Version represents a (software) version, in the dotted form
