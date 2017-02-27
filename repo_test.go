@@ -48,34 +48,35 @@ func TestChangelogUpToDate(t *testing.T) {
 	}
 }
 
-func TestLatestTaggedVersion(t *testing.T) {
+func TestLastVer(t *testing.T) {
 	var result, str, expected string
-	var tags []string
+	gf, _ := NewGitFetcher("git", false)
 
 	expected = ""
 	str = "fückedUp\tbytes\nall overtheplace\t∆å…¡æ"
-	tags = TagsFromGitOutput([]byte(str))
-	result = LatestTaggedVersion("https://mock", "refs/tags/test", tags...)
+	gf.mockedOutput = []byte(str)
+	// tags = TagsFromGitOutput([]byte(str))
+	result, _ = lastVer("https://mock", "refs/tags/test", gf)
 	validateExpectedStr(result, expected, t)
 
 	expected = ""
 	str = "386f2a698332b61278883df6f97d79eb98fe3f29\trefs/heads/master\na839bf2d274aaecd509b51ec37cb51842d4de348\trefs/tags/test01\na839bf2d274aaecd509b51ec37cb51842d4de348\trefs/tags/test02\n386f2a698332b61278883df6f97d79eb98fe3f29\t12.34"
-	tags = TagsFromGitOutput([]byte(str))
-	result = LatestTaggedVersion("https://mock", "notExistent", tags...)
+	gf.mockedOutput = []byte(str)
+	result, _ = lastVer("https://mock", "notExistent", gf)
 	validateExpectedStr(result, expected, t)
 
 	expected = "02"
-	result = LatestTaggedVersion("https://mock", "refs/tags/test", tags...)
+	result, _ = lastVer("https://mock", "refs/tags/test", gf)
 	validateExpectedStr(result, expected, t)
 
 	expected = "12.34"
-	result = LatestTaggedVersion("https://mock", "", tags...)
+	result, _ = lastVer("https://mock", "", gf)
 	validateExpectedStr(result, expected, t)
 
 	expected = "12.34.56"
 	str = str + "\n386f2a698332b61278883df6f97d79eb98fe3f29\trefs/tags/12.34.56\n"
-	tags = TagsFromGitOutput([]byte(str))
-	result = LatestTaggedVersion("https://mock", "refs/tags/", tags...)
+	gf.mockedOutput = []byte(str)
+	result, _ = lastVer("https://mock", "refs/tags/", gf)
 	validateExpectedStr(result, expected, t)
 }
 
@@ -263,17 +264,19 @@ func TestReplaceHostWithIp(t *testing.T) {
 	}
 }
 
-func TestGitPath(t *testing.T) {
-	if GitPath() != "git" {
-		t.Error("Default gitPath should be 'git'")
+func TestGitFetcher(t *testing.T) {
+	gf, _ := NewGitFetcher("", false)
+
+	if res := gf.GitPath(); res != "git" {
+		t.Error("Default git path should be 'git', received", res)
 	}
-	if err := SetGitPath("/whatever/bogus", false); err == nil {
+	if err := gf.SetGitPath("/whatever/bogus", false); err == nil {
 		t.Error("Bogus paths should return error")
 	}
-	if err := SetGitPath("/usr/bin/git", false); err != nil {
+	if err := gf.SetGitPath("/usr/bin/git", false); err != nil {
 		t.Error("'/usr/bin/git' should be valid input, returned " + err.Error())
 	}
-	if GitPath() != "/usr/bin/git" {
-		t.Error("Updated gitPath should be '/usr/bin/git'")
+	if res := gf.GitPath(); res != "/usr/bin/git" {
+		t.Error("Updated git path should be '/usr/bin/git', received", res)
 	}
 }

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2017-02-27
+### Added
+- added `gitFetcher` type to ease mocking Git output while testing
+
 ## [0.4.0] - 2017-02-23
 ### Added
 - `ReplaceHostWithIP` utility to perform DNS lookup and translate hosts in IPs

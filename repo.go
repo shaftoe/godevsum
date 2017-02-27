@@ -10,11 +10,9 @@ import (
 	"strings"
 )
 
-const version = "0.4.0"
+const version = "0.5.0"
 
-var gitPath = "git"
-
-// We are only interested in "stable" versions, so we ignore
+// we are only interested in "stable" versions, so we ignore
 // strings and only look for digits.
 const versionRegexp = `(\d+\.)*(\d+)`
 
@@ -24,19 +22,37 @@ type gitRepo struct {
 
 // GitPath returns the current binary path used to execute
 // git commands.
-func GitPath() string {
-	return gitPath
+func (gf *GitFetcher) GitPath() string {
+	return gf.path
 }
 
 // SetGitPath sets given path as Git binary to be used.
-// Returns error if path is not found.
-//
-// If enforceExec is true, return error if it is not possible
-// to set path as executable.
-func SetGitPath(path string, enforceExec bool) error {
-	if !(len(path) >= 3 && strings.HasSuffix(path, "git")) {
-		return errors.New("path must end with 'git'")
+// Returns error if path is not found or other errors occurred,
+// for example when failing to enforce execution bit.
+func (gf *GitFetcher) SetGitPath(path string, enforceExec bool) error {
+	switch path {
+	case "":
+		// by default, we just use "git" as path
+		gf.path = "git"
+		if !enforceExec {
+			return nil
+		}
+	default:
+		validPaths := map[string]struct{}{
+			"git":                struct{}{},
+			"/usr/bin/git":       struct{}{},
+			"/usr/local/bin/git": struct{}{},
+			"/action/git":        struct{}{},
+		}
+		if _, ok := validPaths[path]; !ok {
+			var errPaths []string
+			for p := range validPaths {
+				errPaths = append(errPaths, p)
+			}
+			return errors.New(path + " is an invalid path, must be one between " + strings.Join(errPaths, ", "))
+		}
 	}
+
 	if enforceExec {
 		if err := os.Chmod(path, 0755); err != nil {
 			return err
@@ -47,7 +63,7 @@ func SetGitPath(path string, enforceExec bool) error {
 	if err != nil {
 		return err
 	}
-	gitPath = p
+	gf.path = p
 	return nil
 }
 
@@ -63,14 +79,6 @@ func TagsFromGitOutput(stdout []byte) []string {
 		}
 	}
 	return result
-}
-
-func (repo *gitRepo) remoteTags() ([]string, error) {
-	stdout, err := exec.Command(gitPath, "ls-remote", "--tags", repo.url).CombinedOutput()
-	if err != nil {
-		return []string{string(stdout)}, err
-	}
-	return TagsFromGitOutput(stdout), nil
 }
 
 func matchingTags(tags []string, regexpPrefix string) []string {
@@ -97,6 +105,7 @@ func LatestVersion(versions []string) string {
 		v, err := NewVersion(r)
 		if err != nil {
 			// default to version 0
+			// FIXME add better error handling
 			vs[i], _ = NewVersion("0")
 		} else {
 			vs[i] = v
@@ -106,33 +115,61 @@ func LatestVersion(versions []string) string {
 	return BiggestVersion(vs)
 }
 
+// GitFetcher represent the object which is responsible
+// to retrieve information from the remote Git repository
+type GitFetcher struct {
+	// Unix path to the binary to be used
+	path string
+
+	// Mock data, used for testing
+	mockedOutput []byte
+}
+
+// NewGitFetcher creates a GitFetcher type instance and returns
+// a pointer to it
+func NewGitFetcher(path string, enforce bool) (*GitFetcher, error) {
+	gf := &GitFetcher{path: path}
+	err := gf.SetGitPath(path, enforce)
+	return gf, err
+}
+
+func (gf *GitFetcher) fetchTags(repo *gitRepo) ([]string, error) {
+	if gf.mockedOutput != nil {
+		return TagsFromGitOutput(gf.mockedOutput), nil
+	}
+	cmd := exec.Command(gf.GitPath(), "ls-remote", "--tags", repo.url)
+	stdout, err := cmd.CombinedOutput()
+	if err != nil {
+		return []string{string(stdout)}, err
+	}
+	return TagsFromGitOutput(stdout), nil
+}
+
 // LatestTaggedVersion returns the latest tagged version of the Git project matching
 // regexpPrefix. For example, for Go url is "https://go.googlesource.com/go" and
 // regexPrefix is "refs/tags/go"
 //
 // Returns empty string if no tag matches given regexpPrefix
-func LatestTaggedVersion(url string, regexpPrefix string, tags ...string) string {
-	// TODO add error return
-	var mTags []string
-	switch {
-	case len(tags) == 0:
-		repo := &gitRepo{url: url}
-		t, err := repo.remoteTags()
-		if err != nil {
-			return err.Error()
-		}
-		mTags = matchingTags(t, regexpPrefix)
-	case len(tags) > 0: // This case is only used to inject tags for testing purpose
-		mTags = matchingTags(tags, regexpPrefix)
+func LatestTaggedVersion(url string, regexpPrefix string, gf *GitFetcher) (string, error) {
+	return lastVer(url, regexpPrefix, gf)
+}
+
+func lastVer(url string, regexpPrefix string, gf *GitFetcher) (string, error) {
+	repo := &gitRepo{url: url}
+	t, err := gf.fetchTags(repo)
+	if err != nil {
+		// first and only element of t contains the error message
+		return t[0], err
 	}
+	mTags := matchingTags(t, regexpPrefix)
+	versions := make([]string, len(mTags))
 
 	// Remove the prefix from the tags
-	versions := make([]string, len(mTags))
 	for i, tag := range mTags {
 		versions[i] = tag[len(regexpPrefix):]
 	}
 
-	return LatestVersion(versions)
+	return LatestVersion(versions), nil
 }
 
 // Version represents a (software) version, in the dotted form
@@ -272,6 +309,7 @@ func ReplaceHostWithIP(url string) (string, error) {
 		return "", errors.New("Url " + url + " is invalid")
 	}
 
+	// TODO implement timeouts, maybe with goroutine
 	addr, err := net.LookupHost(host)
 	if err != nil {
 		return "", err
